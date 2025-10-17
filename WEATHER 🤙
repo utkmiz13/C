@@ -1,0 +1,29 @@
+#include <stdio.h>
+#include <string.h>
+
+int main() {
+    char city[50];
+
+    printf("Welcome to Parth Weather App!\n");
+    printf("Enter city name: ");
+    scanf("%s", city);
+
+    // Hardcoded weather data
+    if (strcmp(city, "Delhi") == 0) {
+        printf("Weather in Delhi: Sunny, 32°C\n");
+    } else if (strcmp(city, "Mumbai") == 0) {
+        printf("Weather in Mumbai: Humid, 28°C\n");
+    } else if (strcmp(city, "Lucknow") == 0) {
+        printf("Weather in Lucknow: Cloudy, 30°C\n");
+    } else if (strcmp(city, "Kolkata") == 0) {
+        printf("Weather in Kolkata: Rainy, 26°C\n");
+    } else if (strcmp(city, "Bangalore") == 0) {
+        printf("Weather in Bangalore: Pleasant, 25°C\n");
+    } else {
+        printf("Weather data for %s is not available.\n", city);
+    }
+
+    printf("Thank you for using Parth Weather App!\n");
+
+    return 0;
+}
