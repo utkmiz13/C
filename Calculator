@@ -1,0 +1,49 @@
+#include <stdio.h>
+
+int main() {
+    char operator, choice;
+    float num1, num2, result;
+
+    printf("Welcome to ParthCalc - Your Personal Calculator!\n");
+
+    do {
+        printf("\nEnter first number: ");
+        scanf("%f", &num1);
+
+        printf("Enter an operator (+, -, *, %%): ");
+        scanf(" %c", &operator);
+
+        printf("Enter second number: ");
+        scanf("%f", &num2);
+
+        switch(operator) {
+            case '+':
+                result = num1 + num2;
+                printf("Result: %.2f + %.2f = %.2f\n", num1, num2, result);
+                break;
+            case '-':
+                result = num1 - num2;
+                printf("Result: %.2f - %.2f = %.2f\n", num1, num2, result);
+                break;
+            case '*':
+                result = num1 * num2;
+                printf("Result: %.2f * %.2f = %.2f\n", num1, num2, result);
+                break;
+            case '%':
+                // Percentage calculation: num1 percent of num2
+                result = (num1 / 100) * num2;
+                printf("Result: %.2f%% of %.2f = %.2f\n", num1, num2, result);
+                break;
+            default:
+                printf("Invalid operator! Please use +, -, *, or %%.\n");
+        }
+
+        printf("\nDo you want to perform another calculation? (y/n): ");
+        scanf(" %c", &choice);
+
+    } while(choice == 'y' || choice == 'Y');
+
+    printf("Thank you for using ParthCalc! Goodbye!\n");
+
+    return 0;
+}
