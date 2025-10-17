@@ -1,0 +1,130 @@
+#include <stdio.h>
+#include <math.h>
+
+#define MAX_HISTORY 100
+
+int main() {
+    int choice;
+    float num1, num2, result, memory = 0;
+    int historyCount = 0;
+    char operations[MAX_HISTORY][100];
+
+    printf("Welcome to Parth Calculator - Scientific Version!\n");
+
+    do {
+        printf("\nSelect an operation:\n");
+        printf("1. Addition (+)\n");
+        printf("2. Subtraction (-)\n");
+        printf("3. Multiplication (*)\n");
+        printf("4. Division (/)\n");
+        printf("5. Percentage (%%)\n");
+        printf("6. Power (^)\n");
+        printf("7. Square Root (√)\n");
+        printf("8. Memory Store (M = last result)\n");
+        printf("9. Memory Recall (MR)\n");
+        printf("10. Show Calculation History\n");
+        printf("11. Exit\n");
+        printf("Enter your choice (1-11): ");
+        scanf("%d", &choice);
+
+        switch(choice) {
+            case 1: // Addition
+                printf("Enter first number: ");
+                scanf("%f", &num1);
+                printf("Enter second number: ");
+                scanf("%f", &num2);
+                result = num1 + num2;
+                printf("Result: %.2f + %.2f = %.2f\n", num1, num2, result);
+                sprintf(operations[historyCount++], "%.2f + %.2f = %.2f", num1, num2, result);
+                break;
+            case 2: // Subtraction
+                printf("Enter first number: ");
+                scanf("%f", &num1);
+                printf("Enter second number: ");
+                scanf("%f", &num2);
+                result = num1 - num2;
+                printf("Result: %.2f - %.2f = %.2f\n", num1, num2, result);
+                sprintf(operations[historyCount++], "%.2f - %.2f = %.2f", num1, num2, result);
+                break;
+            case 3: // Multiplication
+                printf("Enter first number: ");
+                scanf("%f", &num1);
+                printf("Enter second number: ");
+                scanf("%f", &num2);
+                result = num1 * num2;
+                printf("Result: %.2f * %.2f = %.2f\n", num1, num2, result);
+                sprintf(operations[historyCount++], "%.2f * %.2f = %.2f", num1, num2, result);
+                break;
+            case 4: // Division
+                printf("Enter first number: ");
+                scanf("%f", &num1);
+                printf("Enter second number: ");
+                scanf("%f", &num2);
+                if(num2 == 0) {
+                    printf("Error: Division by zero is not allowed!\n");
+                    sprintf(operations[historyCount++], "%.2f / %.2f = ERROR", num1, num2);
+                } else {
+                    result = num1 / num2;
+                    printf("Result: %.2f / %.2f = %.2f\n", num1, num2, result);
+                    sprintf(operations[historyCount++], "%.2f / %.2f = %.2f", num1, num2, result);
+                }
+                break;
+            case 5: // Percentage
+                printf("Enter percentage value: ");
+                scanf("%f", &num1);
+                printf("Enter number to calculate percentage of: ");
+                scanf("%f", &num2);
+                result = (num1 / 100) * num2;
+                printf("Result: %.2f%% of %.2f = %.2f\n", num1, num2, result);
+                sprintf(operations[historyCount++], "%.2f%% of %.2f = %.2f", num1, num2, result);
+                break;
+            case 6: // Power
+                printf("Enter base: ");
+                scanf("%f", &num1);
+                printf("Enter exponent: ");
+                scanf("%f", &num2);
+                result = pow(num1, num2);
+                printf("Result: %.2f ^ %.2f = %.2f\n", num1, num2, result);
+                sprintf(operations[historyCount++], "%.2f ^ %.2f = %.2f", num1, num2, result);
+                break;
+            case 7: // Square root
+                printf("Enter number: ");
+                scanf("%f", &num1);
+                if(num1 < 0) {
+                    printf("Error: Cannot calculate square root of negative number!\n");
+                    sprintf(operations[historyCount++], "√%.2f = ERROR", num1);
+                } else {
+                    result = sqrt(num1);
+                    printf("Result: √%.2f = %.2f\n", num1, result);
+                    sprintf(operations[historyCount++], "√%.2f = %.2f", num1, result);
+                }
+                break;
+            case 8: // Memory Store
+                memory = result;
+                printf("Memory stored: %.2f\n", memory);
+                break;
+            case 9: // Memory Recall
+                printf("Memory Recall: %.2f\n", memory);
+                break;
+            case 10: // History
+                if(historyCount == 0) {
+                    printf("No calculations done yet.\n");
+                } else {
+                    printf("\n--- Calculation History ---\n");
+                    for(int i = 0; i < historyCount; i++) {
+                        printf("%d. %s\n", i+1, operations[i]);
+                    }
+                    printf("---------------------------\n");
+                }
+                break;
+            case 11: // Exit
+                printf("Thank you for using Parth Calculator - Scientific Version! Goodbye!\n");
+                break;
+            default:
+                printf("Invalid choice! Please select 1-11.\n");
+        }
+
+    } while(choice != 11);
+
+    return 0;
+}
