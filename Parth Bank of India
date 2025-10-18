@@ -1,0 +1,394 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
+#define DB_FILE "parthbank.dat"
+#define ADMIN_PASS "admin123"   // simple admin password
+
+struct Bank {
+    char name[50];
+    char address[100];
+    char mobile[11];        // 10 digits + '\0'
+    char account_no[12];    // 11 digits + '\0'
+    char upi_pin[7];        // 6 digits + '\0'
+    char atm_pin[5];        // 4 digits + '\0'
+    char lock_pass[21];     // up to 20 chars
+    float balance;
+};
+
+void mainMenu();
+void createAccount();
+int accountExists(const char *acc);
+int validDigits(const char *s, int requiredLen);
+void login();
+void updateAccountRecord(struct Bank *u);
+void bankMenu(struct Bank *u);
+void atmMenu(struct Bank *u);
+void adminMenu();
+void viewAllAccounts();
+double computeEMI(double principal, double annualRate, int years);
+void loanMenu(struct Bank *u);
+
+// -------------------- Entry --------------------
+int main() {
+    printf("\n=============================================\n");
+    printf("      🇮🇳  PARTH BANK OF INDIA  🇮🇳\n");
+    printf("=============================================\n");
+    mainMenu();
+    return 0;
+}
+
+// -------------------- Main Menu --------------------
+void mainMenu() {
+    int choice;
+    while (1) {
+        printf("\nMain Menu:\n");
+        printf("1. Create New Account\n");
+        printf("2. Login (Customer)\n");
+        printf("3. Admin (View Accounts)\n");
+        printf("4. Exit\n");
+        printf("Enter choice: ");
+        if (scanf("%d", &choice) != 1) { while(getchar() != '\n'); printf("Invalid input.\n"); continue; }
+        getchar(); // clear newline
+        switch (choice) {
+            case 1: createAccount(); break;
+            case 2: login(); break;
+            case 3: adminMenu(); break;
+            case 4:
+                printf("\nThank you for using PARTH BANK OF INDIA. Goodbye!\n");
+                return;
+            default:
+                printf("Invalid choice. Try again.\n");
+        }
+    }
+}
+
+// -------------------- Create Account --------------------
+void createAccount() {
+    struct Bank u;
+    FILE *fp;
+    printf("\n--- Create New Account ---\n");
+
+    printf("Full Name: ");
+    fgets(u.name, sizeof(u.name), stdin);
+    u.name[strcspn(u.name, "\n")] = 0;
+
+    printf("Address: ");
+    fgets(u.address, sizeof(u.address), stdin);
+    u.address[strcspn(u.address, "\n")] = 0;
+
+    // Mobile
+    do {
+        printf("Mobile (10 digits): ");
+        fgets(u.mobile, sizeof(u.mobile), stdin);
+        u.mobile[strcspn(u.mobile, "\n")] = 0;
+        if (!validDigits(u.mobile, 10)) printf(" -> Invalid mobile. Must be exactly 10 digits.\n");
+    } while (!validDigits(u.mobile, 10));
+
+    // Account number
+    do {
+        printf("Account Number (exactly 11 digits): ");
+        fgets(u.account_no, sizeof(u.account_no), stdin);
+        u.account_no[strcspn(u.account_no, "\n")] = 0;
+        if (!validDigits(u.account_no, 11)) { printf(" -> Invalid account number (11 digits required).\n"); continue; }
+        if (accountExists(u.account_no)) { printf(" -> Account number already exists. Choose another.\n"); continue; }
+        break;
+    } while (1);
+
+    // UPI pin
+    do {
+        printf("Set UPI PIN (6 digits): ");
+        fgets(u.upi_pin, sizeof(u.upi_pin), stdin);
+        u.upi_pin[strcspn(u.upi_pin, "\n")] = 0;
+        if (!validDigits(u.upi_pin, 6)) printf(" -> Invalid UPI PIN.\n");
+    } while (!validDigits(u.upi_pin, 6));
+
+    // ATM pin
+    do {
+        printf("Set ATM PIN (4 digits): ");
+        fgets(u.atm_pin, sizeof(u.atm_pin), stdin);
+        u.atm_pin[strcspn(u.atm_pin, "\n")] = 0;
+        if (!validDigits(u.atm_pin, 4)) printf(" -> Invalid ATM PIN.\n");
+    } while (!validDigits(u.atm_pin, 4));
+
+    // Lock screen password (alphanumeric)
+    printf("Set Lock-screen Password (up to 20 chars): ");
+    fgets(u.lock_pass, sizeof(u.lock_pass), stdin);
+    u.lock_pass[strcspn(u.lock_pass, "\n")] = 0;
+
+    // initial deposit
+    printf("Initial deposit amount (₹): ");
+    if (scanf("%f", &u.balance) != 1) { while(getchar() != '\n'); u.balance = 0.0f; }
+    getchar();
+
+    // save
+    fp = fopen(DB_FILE, "ab");
+    if (!fp) { printf("File error. Could not save account.\n"); return; }
+    fwrite(&u, sizeof(u), 1, fp);
+    fclose(fp);
+
+    printf("\n✅ Account created successfully.\n");
+    printf("Account No: %s\n", u.account_no);
+}
+
+// -------------------- Helpers --------------------
+int validDigits(const char *s, int requiredLen) {
+    if (!s) return 0;
+    if ((int)strlen(s) != requiredLen) return 0;
+    for (int i = 0; s[i]; ++i) if (s[i] < '0' || s[i] > '9') return 0;
+    return 1;
+}
+
+int accountExists(const char *acc) {
+    FILE *fp = fopen(DB_FILE, "rb");
+    struct Bank t;
+    if (!fp) return 0;
+    while (fread(&t, sizeof(t), 1, fp)) {
+        if (strcmp(t.account_no, acc) == 0) { fclose(fp); return 1; }
+    }
+    fclose(fp);
+    return 0;
+}
+
+// -------------------- Login --------------------
+void login() {
+    char acc[12], pass[21];
+    struct Bank user;
+    int found = 0;
+    FILE *fp = fopen(DB_FILE, "rb");
+    if (!fp) { printf("\nNo accounts found. Create account first.\n"); return; }
+
+    printf("\n--- Customer Login ---\n");
+    printf("Account Number (11 digits): ");
+    fgets(acc, sizeof(acc), stdin); acc[strcspn(acc, "\n")] = 0;
+    printf("Lock-screen Password: ");
+    fgets(pass, sizeof(pass), stdin); pass[strcspn(pass, "\n")] = 0;
+
+    while (fread(&user, sizeof(user), 1, fp)) {
+        if (strcmp(user.account_no, acc) == 0 && strcmp(user.lock_pass, pass) == 0) {
+            found = 1;
+            break;
+        }
+    }
+    fclose(fp);
+
+    if (!found) {
+        printf("❌ Login failed. Check account number or password.\n");
+        return;
+    }
+
+    printf("\n✅ Login successful. Welcome, %s!\n", user.name);
+    bankMenu(&user);
+}
+
+// -------------------- Update account record in file --------------------
+void updateAccountRecord(struct Bank *u) {
+    FILE *fp = fopen(DB_FILE, "rb");
+    FILE *temp = fopen("temp.dat", "wb");
+    struct Bank t;
+    if (!fp || !temp) { if (fp) fclose(fp); if (temp) fclose(temp); printf("File error updating record.\n"); return; }
+    while (fread(&t, sizeof(t), 1, fp)) {
+        if (strcmp(t.account_no, u->account_no) == 0) fwrite(u, sizeof(*u), 1, temp);
+        else fwrite(&t, sizeof(t), 1, temp);
+    }
+    fclose(fp);
+    fclose(temp);
+    remove(DB_FILE);
+    rename("temp.dat", DB_FILE);
+}
+
+// -------------------- Bank Menu (Customer) --------------------
+void bankMenu(struct Bank *u) {
+    int ch;
+    while (1) {
+        printf("\n--- PARTH BANK OF INDIA : Customer Menu ---\n");
+        printf("1. Show Account Details\n");
+        printf("2. Check Balance\n");
+        printf("3. Deposit Money\n");
+        printf("4. Withdraw Money\n");
+        printf("5. Online Transfer (Net Banking)\n");
+        printf("6. Loans & Finance\n");
+        printf("7. ATM Services\n");
+        printf("8. Logout\n");
+        printf("Enter choice: ");
+        if (scanf("%d", &ch) != 1) { while(getchar()!='\n'); printf("Invalid input.\n"); continue; }
+        getchar();
+
+        if (ch == 1) {
+            printf("\n--- Account Details ---\n");
+            printf("Name       : %s\n", u->name);
+            printf("Address    : %s\n", u->address);
+            printf("Mobile     : %s\n", u->mobile);
+            printf("Account No : %s\n", u->account_no);
+            printf("Balance    : ₹%.2f\n", u->balance);
+        }
+        else if (ch == 2) {
+            printf("\n💰 Current Balance: ₹%.2f\n", u->balance);
+        }
+        else if (ch == 3) {
+            float amt; printf("Enter deposit amount: ₹"); if (scanf("%f", &amt) != 1) { while(getchar()!='\n'); printf("Invalid.\n"); continue; }
+            if (amt > 0) { u->balance += amt; updateAccountRecord(u); printf("✅ Deposited ₹%.2f\n", amt); } else printf("Invalid amount.\n");
+            getchar();
+        }
+        else if (ch == 4) {
+            float amt; printf("Enter withdrawal amount: ₹"); if (scanf("%f", &amt) != 1) { while(getchar()!='\n'); printf("Invalid.\n"); continue; }
+            if (amt > 0 && amt <= u->balance) { u->balance -= amt; updateAccountRecord(u); printf("✅ Withdrawn ₹%.2f\n", amt); } else printf("Insufficient balance or invalid amount.\n");
+            getchar();
+        }
+        else if (ch == 5) {
+            char recAcc[12]; float amt; struct Bank rec; int found=0;
+            printf("Enter receiver account no (11 digits): "); fgets(recAcc, sizeof(recAcc), stdin); recAcc[strcspn(recAcc, "\n")] = 0;
+            printf("Amount to transfer: ₹"); if (scanf("%f", &amt) != 1) { while(getchar()!='\n'); printf("Invalid.\n"); continue; }
+            getchar();
+            if (amt <= 0 || amt > u->balance) { printf("Invalid amount or insufficient balance.\n"); continue; }
+            FILE *fp = fopen(DB_FILE, "rb");
+            if (!fp) { printf("File error.\n"); continue; }
+            while (fread(&rec, sizeof(rec), 1, fp)) { if (strcmp(rec.account_no, recAcc)==0) { found=1; break; } }
+            fclose(fp);
+            if (!found) { printf("Receiver not found.\n"); continue; }
+            // confirm by UPI PIN
+            char pin[7]; printf("Enter your 6-digit UPI PIN to confirm: "); fgets(pin, sizeof(pin), stdin); pin[strcspn(pin, "\n")] = 0;
+            if (strcmp(pin, u->upi_pin) != 0) { printf("Wrong UPI PIN.\n"); continue; }
+            // transfer
+            u->balance -= amt; rec.balance += amt;
+            updateAccountRecord(u); updateAccountRecord(&rec);
+            printf("✅ ₹%.2f transferred to %s (Acc: %s)\n", amt, rec.name, rec.account_no);
+        }
+        else if (ch == 6) {
+            loanMenu(u);
+        }
+        else if (ch == 7) {
+            atmMenu(u);
+        }
+        else if (ch == 8) {
+            updateAccountRecord(u);
+            printf("Logged out. Goodbye %s\n", u->name);
+            return;
+        }
+        else {
+            printf("Invalid option.\n");
+        }
+    }
+}
+
+// -------------------- ATM Menu --------------------
+void atmMenu(struct Bank *u) {
+    char pin[6]; printf("Enter 4-digit ATM PIN: "); fgets(pin, sizeof(pin), stdin); pin[strcspn(pin, "\n")] = 0;
+    if (!validDigits(pin, 4) || strcmp(pin, u->atm_pin) != 0) { printf("Wrong ATM PIN.\n"); return; }
+    int ch; float amt;
+    while (1) {
+        printf("\n--- ATM ---\n1. Check Balance\n2. Withdraw Cash\n3. Change ATM PIN\n4. Exit ATM\nEnter choice: ");
+        if (scanf("%d", &ch) != 1) { while(getchar()!='\n'); printf("Invalid.\n"); continue; }
+        getchar();
+        if (ch == 1) printf("💰 Balance: ₹%.2f\n", u->balance);
+        else if (ch == 2) {
+            printf("Enter cash amount: ₹"); if (scanf("%f", &amt) != 1) { while(getchar()!='\n'); printf("Invalid.\n"); continue; }
+            getchar();
+            if (amt > 0 && amt <= u->balance) { u->balance -= amt; updateAccountRecord(u); printf("✅ ₹%.2f dispensed\n", amt); }
+            else printf("Insufficient balance or invalid amount.\n");
+        }
+        else if (ch == 3) {
+            char newpin[6];
+            do { printf("Enter new 4-digit ATM PIN: "); fgets(newpin, sizeof(newpin), stdin); newpin[strcspn(newpin, "\n")] = 0;
+                if (!validDigits(newpin,4)) printf("Invalid PIN.\n"); } while (!validDigits(newpin,4));
+            strcpy(u->atm_pin, newpin); updateAccountRecord(u); printf("✅ ATM PIN changed.\n");
+        }
+        else if (ch == 4) { printf("Exiting ATM.\n"); return; }
+        else printf("Invalid choice.\n");
+    }
+}
+
+// -------------------- Admin --------------------
+void adminMenu() {
+    char pass[50];
+    printf("\nAdmin Login - enter admin password: ");
+    fgets(pass, sizeof(pass), stdin); pass[strcspn(pass, "\n")] = 0;
+    if (strcmp(pass, ADMIN_PASS) != 0) { printf("Wrong admin password.\n"); return; }
+    int ch;
+    while (1) {
+        printf("\n--- ADMIN ---\n1. View All Accounts\n2. Return to Main Menu\nEnter choice: ");
+        if (scanf("%d", &ch) != 1) { while(getchar()!='\n'); printf("Invalid.\n"); continue; }
+        getchar();
+        if (ch == 1) viewAllAccounts();
+        else if (ch == 2) return;
+        else printf("Invalid.\n");
+    }
+}
+
+void viewAllAccounts() {
+    FILE *fp = fopen(DB_FILE, "rb");
+    struct Bank t;
+    if (!fp) { printf("No accounts found.\n"); return; }
+    printf("\n--- All Accounts ---\n");
+    while (fread(&t, sizeof(t), 1, fp)) {
+        printf("Name: %s | Acc: %s | Mobile: %s | Balance: ₹%.2f\n", t.name, t.account_no, t.mobile, t.balance);
+    }
+    fclose(fp);
+}
+
+// -------------------- Loan Utilities --------------------
+// EMI formula: EMI = P * r*(1+r)^n / ((1+r)^n - 1)
+// r = monthly rate (decimal), n = months
+double computeEMI(double principal, double annualRate, int years) {
+    double monthlyRate = annualRate / 12.0 / 100.0;
+    int n = years * 12;
+    if (monthlyRate == 0) return principal / n;
+    double rpow = pow(1 + monthlyRate, n);
+    double emi = principal * monthlyRate * rpow / (rpow - 1);
+    return emi;
+}
+
+void loanMenu(struct Bank *u) {
+    int choice;
+    while (1) {
+        printf("\n--- Loans & Finance ---\n");
+        printf("1. Home Loan\n");
+        printf("2. Education Loan\n");
+        printf("3. Personal Loan\n");
+        printf("4. Business Loan\n");
+        printf("5. Back to Main Menu\n");
+        printf("Choose loan type: ");
+        if (scanf("%d", &choice) != 1) { while(getchar()!='\n'); printf("Invalid.\n"); continue; }
+        getchar();
+
+        double amount; int years; double annualRate; double emi;
+        double monthlyIncome;
+        if (choice >=1 && choice <=4) {
+            printf("Enter loan amount (₹): "); if (scanf("%lf", &amount) != 1) { while(getchar()!='\n'); printf("Invalid.\n"); continue; }
+            printf("Enter tenure (years): "); if (scanf("%d", &years) != 1) { while(getchar()!='\n'); printf("Invalid.\n"); continue; }
+            getchar();
+            printf("Enter your monthly income (₹): "); if (scanf("%lf", &monthlyIncome) != 1) { while(getchar()!='\n'); printf("Invalid.\n"); continue; }
+            getchar();
+
+            // simple interest rate selection by loan type
+            if (choice == 1) annualRate = 7.5;      // Home
+            else if (choice == 2) annualRate = 6.5; // Education
+            else if (choice == 3) annualRate = 12.0; // Personal
+            else annualRate = 10.0; // Business
+
+            emi = computeEMI(amount, annualRate, years);
+            printf("\nLoan Summary:\nType: %s\nAmount: ₹%.2f\nTenure: %d years\nRate (annual): %.2f%%\nEstimated EMI: ₹%.2f\n",
+                   (choice==1?"Home Loan":choice==2?"Education Loan":choice==3?"Personal Loan":"Business Loan"),
+                   amount, years, annualRate, emi);
+
+            // simple eligibility: EMI must be <= 50% monthly income
+            if (emi <= 0.5 * monthlyIncome) {
+                printf("\n✅ You are eligible based on EMI <= 50%% of monthly income.\n");
+                char accept;
+                printf("Do you want to accept the loan and credit amount to your account? (y/n): ");
+                getchar(); // read newline safety
+                accept = getchar(); while(getchar()!='\n');
+                if (accept == 'y' || accept == 'Y') {
+                    u->balance += (float)amount;
+                    updateAccountRecord(u);
+                    printf("✅ Loan sanctioned and ₹%.2f credited to your account. New balance: ₹%.2f\n", amount, u->balance);
+                } else printf("Loan not accepted.\n");
+            } else {
+                printf("\n❌ Not eligible: EMI (₹%.2f) is more than 50%% of your monthly income (₹%.2f).\n", emi, 0.5*monthlyIncome);
+            }
+        }
+        else if (choice == 5) return;
+        else printf("Invalid choice.\n");
+    }
+}
